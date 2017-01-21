@@ -1,0 +1,5 @@
+{
+  "lambda_arn": "arn:aws:lambda:eu-west-1:839677405202:function:brag", 
+  "app_name": "brag", 
+  "stage": "dev"
+}
