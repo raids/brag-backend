@@ -3,6 +3,18 @@
   "Statement": [
     {
       "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem"
+      ],
+      "Resource": [
+        "*"
+      ],
+      "Effect": "Allow",
+      "Sid": "5c013da1e9364a0c8391d538deb27a21"
+    },
+    {
+      "Action": [
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents"
