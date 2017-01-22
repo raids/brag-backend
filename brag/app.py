@@ -4,6 +4,7 @@ import urlparse
 import json
 import uuid
 import time
+import urllib2
 import boto3
 from botocore.exceptions import ClientError
 
@@ -16,17 +17,44 @@ app.debug = True
 dynamodb_client = boto3.client('dynamodb')
 dynamodb_table = 'brag-posts'
 
+# aud omitted so as not to push to git
+# brag_aud = ""
+domain = "cloudreach.com"
+
+def validate_token(id_token, brag_aud, domain):
+    url = 'https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=' + id_token
+    resp = urllib2.urlopen(url).read()
+    if resp:
+        content = json.loads(resp)
+        if content['aud'] == brag_aud:
+            return content
+    else:
+        raise
+
 def get_brags():
     try:
         scan_response = dynamodb_client.scan(
             TableName='brag-posts',
             )
         scan_response = [{"body": brag["body"]["S"], "title": brag["title"]["S"],
-            "id": brag["id"]["S"]} for brag in scan_response['Items']]
+            "id": brag["id"]["S"], "creation_time": brag["creation_time"]["N"],
+            "user_id": brag["user_id"]["S"], "name": brag["name"]["S"]} for brag in scan_response['Items']]
     except ClientError as e:
         scan_response = e.response['Error']['Code']
         raise
     return scan_response
+
+def query_brags():
+    try:
+        query_response = dynamodb_client.scan(
+            TableName='brag-posts',
+            )
+        query_response = [{"body": brag["body"]["S"], "title": brag["title"]["S"],
+            "id": brag["id"]["S"], "creation_time": brag["creation_time"]["N"]} for brag in query_response['Items']]
+    except ClientError as e:
+        query_response = e.response['Error']['Code']
+        raise
+    return query_response
 
 def create_brag(data):
     try:
@@ -44,6 +72,12 @@ def create_brag(data):
                 },
                 "creation_time": {
                     "N": data['creation_time']
+                },
+                "user_id": {
+                    "S": data['user_id']
+                },
+                "name": {
+                    "S": data['name']
                 }
             },
             ConditionExpression='attribute_not_exists(id)'
@@ -83,13 +117,8 @@ def update_brag(data):
 
 @app.route('/', methods=['GET'], cors=True)
 def index():
-    # get posts from db here
-    # posts = [
-    #     {"title": "hey i did a thing", "body": "i did it like this", "id": 0},
-    #     {"title": "i did another thing", "body": "i did it like this", "id": 1},
-    #     {"title": "check out the latest thing i did", "body": "i did it like this", "id": 2},
-    #     ]
     brags = get_brags()
+    brags = sorted(brags, key=lambda k: k['creation_time'], reverse=True)
     return {
         'brags': brags,
         # 'body': body,
@@ -102,17 +131,22 @@ def brag():
     # If request is a PUT, update the existing item in ddb
     request = app.current_request
     data = request.json_body
-    data = json.loads(data['brag'])
-    if request.method == 'POST':
-        # generate uuid for the new post
-        data['creation_time'] = str(int(time.time()))
-        data['id'] = str(uuid.uuid4())
-        brags = create_brag(data)
-    elif request.method == 'PUT':
-        brags = update_brag(data)
-    return {
-        'brags': brags,
-    }
+    id_token = data['id_token']
+    user_valid = validate_token(id_token, brag_aud, domain)
+    if user_valid:
+        brag_data = data['brag']
+        if request.method == 'POST':
+            # generate uuid for the new post
+            brag_data['user_id'] = user_valid['sub']
+            brag_data['name'] = user_valid['name']
+            brag_data['creation_time'] = str(int(time.time()))
+            brag_data['id'] = str(uuid.uuid4())
+            brags = create_brag(brag_data)
+        elif request.method == 'PUT':
+            brags = update_brag(brag_data)
+        return {
+            'brags': brags,
+        }
 
 @app.route('/comment', methods=['POST'], content_types=['application/json'], cors=True)
 def comment():
