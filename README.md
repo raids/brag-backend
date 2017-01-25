@@ -1,4 +1,4 @@
-# brag-frontend
+# brag-backend
 
 Brag: share technical achievements.
 
