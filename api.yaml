@@ -1,0 +1,74 @@
+swagger: '2.0'
+info:
+  title: Brag API
+  description: Share technical achievements with the Uber API
+  version: "1.0.0"
+# the domain of the service
+host: l1xcmh27r8.execute-api.eu-west-1.amazonaws.com
+# array of all schemes that your API supports
+schemes:
+  - https
+# will be prefixed to all paths
+basePath: /prod
+produces:
+  - application/json
+paths:
+  /brags:
+    get:
+      summary: Get a list of all Brags.
+      description: |
+        Returns all brags, ordered by their creation date.
+      tags:
+        - Brags
+      responses:
+        200:
+          description: An array of brags
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Brag'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    post:
+      summary: Create a new brag.
+      description: |
+        Creates a new brag.
+      tags:
+        - Brags
+      responses:
+        201:
+          description: The created brag
+          schema:
+            $ref: '#/definitions/Brag'
+definitions:
+  Brag:
+    type: object
+    properties:
+      creation_time:
+        type: string
+        format: date-time
+        description: The time and date the brag was created
+      id:
+        type: string
+        description: The brag's ID.
+      user:
+        type: object
+        properties:
+          id:
+            type: string
+            description: The user's ID
+          name:
+            type: string
+            description: The user's GitHub username
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+      fields:
+        type: string
